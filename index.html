@@ -2,7 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="theme-color" content="#0a0a1a" />
     <title>Check Time</title>
     <style>
         /* ===== RESET & BASE ===== */
@@ -43,6 +47,10 @@
             overflow-x: hidden;
             -webkit-text-size-adjust: 100%;
             text-size-adjust: 100%;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         /* ===== ANIMATED BACKGROUND ===== */
@@ -63,6 +71,7 @@
             filter: blur(80px);
             opacity: 0.15;
             animation: orbFloat 20s ease-in-out infinite alternate;
+            will-change: transform;
         }
 
         .bg-animation .orb:nth-child(1) {
@@ -124,6 +133,9 @@
             padding: 40px 36px 48px;
             box-shadow: var(--shadow);
             transition: transform 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch;
         }
 
         .main-card:hover {
@@ -227,10 +239,11 @@
             -webkit-appearance: none;
             cursor: pointer;
             transition: border-color 0.3s, box-shadow 0.3s;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
             background-repeat: no-repeat;
             background-position: right 16px center;
             background-size: 16px;
+            padding-right: 44px;
         }
 
         .timezone-selector select:hover {
@@ -308,6 +321,9 @@
             align-items: center;
             justify-content: center;
             gap: 8px;
+            -webkit-user-select: none;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
         }
 
         .actions button:active {
@@ -364,6 +380,7 @@
             .main-card {
                 padding: 28px 20px 36px;
                 border-radius: 24px;
+                max-height: 92vh;
             }
 
             .clock-display .time {
@@ -395,6 +412,11 @@
             .actions {
                 flex-direction: column;
             }
+
+            .actions button {
+                padding: 12px 0;
+                font-size: 0.9rem;
+            }
         }
 
         @media (max-width: 360px) {
@@ -404,6 +426,30 @@
 
             .main-card {
                 padding: 20px 16px 28px;
+                max-height: 94vh;
+            }
+
+            .header h1 {
+                font-size: 1.4rem;
+            }
+
+            .actions {
+                gap: 8px;
+            }
+        }
+
+        @media (hover: none) and (pointer: coarse) {
+            .main-card:hover {
+                transform: none;
+            }
+
+            .actions button:hover {
+                transform: none;
+            }
+
+            .info-item:hover {
+                background: rgba(255, 255, 255, 0.04);
+                border-color: rgba(255, 255, 255, 0.06);
             }
         }
     </style>
@@ -793,13 +839,20 @@
                     if (!doc.fullscreenElement &&
                         !doc.webkitFullscreenElement) {
 
-                        if (root.requestFullscreen) {
-                            root.requestFullscreen().catch(function () {});
-                        } else if (root.webkitRequestFullscreen) {
-                            root.webkitRequestFullscreen();
+                        // Try to request fullscreen
+                        const fullscreenPromise = root.requestFullscreen
+                            ? root.requestFullscreen()
+                            : root.webkitRequestFullscreen
+                            ? root.webkitRequestFullscreen()
+                            : null;
+
+                        if (fullscreenPromise) {
+                            fullscreenPromise.catch(function (error) {
+                                console.warn('Fullscreen request failed:', error);
+                            });
                         } else {
-                            // Fullscreen is not supported by this browser.
-                            alert('Fullscreen is not supported by this browser.');
+                            // Fullscreen not supported - silently fail on mobile
+                            console.info('Fullscreen is not supported by this browser.');
                         }
 
                     } else {
