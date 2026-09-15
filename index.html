@@ -26,9 +26,14 @@
             --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         }
 
+        html {
+            min-height: 100%;
+        }
+
         body {
-            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-family: 'Segoe UI', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
             min-height: 100vh;
+            min-height: 100dvh;
             background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
             display: flex;
             align-items: center;
@@ -36,6 +41,8 @@
             padding: 20px;
             color: var(--text-primary);
             overflow-x: hidden;
+            -webkit-text-size-adjust: 100%;
+            text-size-adjust: 100%;
         }
 
         /* ===== ANIMATED BACKGROUND ===== */
@@ -350,6 +357,10 @@
 
         /* ===== RESPONSIVE ===== */
         @media (max-width: 480px) {
+            body {
+                padding: 12px;
+            }
+
             .main-card {
                 padding: 28px 20px 36px;
                 border-radius: 24px;
@@ -483,7 +494,7 @@
     </div>
 
     <script>
-        (function() {
+        (function () {
             'use strict';
 
             // ===== DOM REFS =====
@@ -499,178 +510,331 @@
 
             // ===== STATE =====
             let is24Hour = true;
-            let selectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-            // ===== POPULATE TIMEZONES =====
+            // Some older/mobile browsers can return an empty or invalid timezone.
+            function getBrowserTimezone() {
+                try {
+                    const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    if (tz && isValidTimezone(tz)) return tz;
+                } catch (e) {
+                    console.warn('Timezone detection failed:', e);
+                }
+                return 'UTC';
+            }
+
+            function isValidTimezone(tz) {
+                try {
+                    new Intl.DateTimeFormat('en-US', { timeZone: tz }).format(new Date());
+                    return true;
+                } catch (e) {
+                    return false;
+                }
+            }
+
+            let selectedTimezone = getBrowserTimezone();
+
+            // ===== TIMEZONE LIST =====
+            const fallbackZones = [
+                'UTC',
+                'Africa/Cairo',
+                'Africa/Johannesburg',
+                'Africa/Lagos',
+                'Africa/Nairobi',
+                'America/Chicago',
+                'America/Denver',
+                'America/Los_Angeles',
+                'America/New_York',
+                'America/Sao_Paulo',
+                'America/Toronto',
+                'Asia/Dhaka',
+                'Asia/Dubai',
+                'Asia/Hong_Kong',
+                'Asia/Jakarta',
+                'Asia/Karachi',
+                'Asia/Kolkata',
+                'Asia/Riyadh',
+                'Asia/Seoul',
+                'Asia/Shanghai',
+                'Asia/Singapore',
+                'Asia/Tokyo',
+                'Australia/Melbourne',
+                'Australia/Sydney',
+                'Europe/Amsterdam',
+                'Europe/Berlin',
+                'Europe/Istanbul',
+                'Europe/London',
+                'Europe/Madrid',
+                'Europe/Moscow',
+                'Europe/Paris',
+                'Europe/Rome',
+                'Pacific/Auckland',
+                'Pacific/Honolulu'
+            ];
+
+            function getTimezones() {
+                try {
+                    if (typeof Intl.supportedValuesOf === 'function') {
+                        const zones = Intl.supportedValuesOf('timeZone');
+                        if (Array.isArray(zones) && zones.length) {
+                            return zones;
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Full timezone list unavailable:', e);
+                }
+
+                return fallbackZones;
+            }
+
             function populateTimezones() {
-                const zones = Intl.supportedValuesOf
-                    ? Intl.supportedValuesOf('timeZone')
-                    : [
-                        'UTC',
-                        'America/New_York',
-                        'America/Chicago',
-                        'America/Denver',
-                        'America/Los_Angeles',
-                        'Europe/London',
-                        'Europe/Paris',
-                        'Europe/Berlin',
-                        'Europe/Moscow',
-                        'Asia/Dubai',
-                        'Asia/Kolkata',
-                        'Asia/Shanghai',
-                        'Asia/Tokyo',
-                        'Asia/Seoul',
-                        'Australia/Sydney',
-                        'Pacific/Auckland',
-                        'Africa/Cairo',
-                        'Africa/Johannesburg',
-                        'Africa/Lagos',
-                        'Africa/Nairobi'
-                    ];
+                const zones = [...new Set(getTimezones())].sort();
 
-                // Deduplicate and sort
-                const uniqueZones = [...new Set(zones)].sort();
+                // Make sure the detected timezone is selectable even if a
+                // browser has an unusual timezone database.
+                if (selectedTimezone && !zones.includes(selectedTimezone)) {
+                    zones.unshift(selectedTimezone);
+                }
 
-                // Clear existing
                 timezoneSelect.innerHTML = '';
 
-                uniqueZones.forEach(zone => {
+                zones.forEach(function (zone) {
                     const option = document.createElement('option');
                     option.value = zone;
                     option.textContent = zone.replace(/_/g, ' ');
-                    if (zone === selectedTimezone) {
-                        option.selected = true;
-                    }
                     timezoneSelect.appendChild(option);
                 });
+
+                if (zones.includes(selectedTimezone)) {
+                    timezoneSelect.value = selectedTimezone;
+                } else {
+                    selectedTimezone = 'UTC';
+                    timezoneSelect.value = 'UTC';
+                }
             }
 
             // ===== FORMAT HELPERS =====
-            function pad(n) {
-                return String(n).padStart(2, '0');
+            function getFormatter(timeZone, options) {
+                try {
+                    return new Intl.DateTimeFormat('en-US', Object.assign({
+                        timeZone: timeZone
+                    }, options));
+                } catch (e) {
+                    // Absolute fallback for a bad timezone value.
+                    return new Intl.DateTimeFormat('en-US', Object.assign({
+                        timeZone: 'UTC'
+                    }, options));
+                }
             }
 
-            function formatTime(date, tz, is24) {
-                const opts = {
-                    timeZone: tz,
+            function formatTime(date, tz, use24Hour) {
+                const formatter = getFormatter(tz, {
                     hour: '2-digit',
                     minute: '2-digit',
                     second: '2-digit',
-                    hour12: !is24,
-                };
-                const parts = new Intl.DateTimeFormat('en-US', opts).formatToParts(date);
-                let hour = '00',
-                    minute = '00',
-                    second = '00',
-                    ampm = '';
-                parts.forEach(p => {
-                    if (p.type === 'hour') hour = p.value;
-                    if (p.type === 'minute') minute = p.value;
-                    if (p.type === 'second') second = p.value;
-                    if (p.type === 'dayPeriod') ampm = p.value;
+                    hour12: !use24Hour
                 });
-                return { hour, minute, second, ampm };
+
+                const parts = formatter.formatToParts(date);
+                let hour = '00';
+                let minute = '00';
+                let second = '00';
+                let ampm = '';
+
+                parts.forEach(function (part) {
+                    if (part.type === 'hour') hour = part.value;
+                    if (part.type === 'minute') minute = part.value;
+                    if (part.type === 'second') second = part.value;
+                    if (part.type === 'dayPeriod') ampm = part.value;
+                });
+
+                return {
+                    hour: hour,
+                    minute: minute,
+                    second: second,
+                    ampm: ampm
+                };
             }
 
             function formatDate(date, tz) {
-                const opts = {
-                    timeZone: tz,
+                return getFormatter(tz, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
-                    day: 'numeric',
-                };
-                return new Intl.DateTimeFormat('en-US', opts).format(date);
+                    day: 'numeric'
+                }).format(date);
             }
 
-            function getUtcOffsetString(date, tz) {
-                const opts = {
-                    timeZone: tz,
-                    timeZoneName: 'shortOffset',
-                };
-                const parts = new Intl.DateTimeFormat('en-US', opts).formatToParts(date);
-                const offsetPart = parts.find(p => p.type === 'timeZoneName');
-                let offset = offsetPart ? offsetPart.value : 'UTC';
-                // Normalize
-                if (offset === 'GMT') offset = 'UTC';
-                return offset;
+            // Works even on browsers that do not support timeZoneName:
+            // 'shortOffset'.
+            function getOffsetMinutes(date, tz) {
+                try {
+                    const parts = getFormatter(tz, {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit',
+                        hourCycle: 'h23'
+                    }).formatToParts(date);
+
+                    const values = {};
+                    parts.forEach(function (part) {
+                        if (part.type !== 'literal') values[part.type] = part.value;
+                    });
+
+                    const asUTC = Date.UTC(
+                        Number(values.year),
+                        Number(values.month) - 1,
+                        Number(values.day),
+                        Number(values.hour),
+                        Number(values.minute),
+                        Number(values.second)
+                    );
+
+                    // Date.now() is UTC milliseconds. The difference gives
+                    // the timezone offset without relying on shortOffset.
+                    return Math.round((asUTC - date.getTime()) / 60000);
+                } catch (e) {
+                    return 0;
+                }
+            }
+
+            function formatOffset(minutes) {
+                const sign = minutes >= 0 ? '+' : '-';
+                const absolute = Math.abs(minutes);
+                const hours = Math.floor(absolute / 60);
+                const mins = absolute % 60;
+
+                return 'UTC' + sign +
+                    String(hours).padStart(2, '0') + ':' +
+                    String(mins).padStart(2, '0');
             }
 
             function getDstStatus(date, tz) {
-                // Simple heuristic: compare Jan and Jul offsets
-                const jan = new Date(date.getFullYear(), 0, 1);
-                const jul = new Date(date.getFullYear(), 6, 1);
-                const opts = { timeZone: tz, timeZoneName: 'shortOffset' };
-                const janOffset = new Intl.DateTimeFormat('en-US', opts).formatToParts(jan).find(p => p.type === 'timeZoneName')?.value || '';
-                const julOffset = new Intl.DateTimeFormat('en-US', opts).formatToParts(jul).find(p => p.type === 'timeZoneName')?.value || '';
-                return janOffset !== julOffset;
+                try {
+                    // Compare offsets in January and July. This is a practical
+                    // DST indicator for common timezone databases.
+                    const year = date.getUTCFullYear();
+                    const jan = new Date(Date.UTC(year, 0, 1));
+                    const jul = new Date(Date.UTC(year, 6, 1));
+
+                    const janOffset = getOffsetMinutes(jan, tz);
+                    const julOffset = getOffsetMinutes(jul, tz);
+
+                    if (janOffset === julOffset) return false;
+
+                    const currentOffset = getOffsetMinutes(date, tz);
+                    const standardOffset = Math.min(janOffset, julOffset);
+
+                    return currentOffset !== standardOffset;
+                } catch (e) {
+                    return false;
+                }
             }
 
             // ===== UPDATE CLOCK =====
             function updateClock() {
-                const now = new Date();
+                try {
+                    const now = new Date();
 
-                // Time
-                const { hour, minute, second, ampm } = formatTime(now, selectedTimezone, is24Hour);
-                const timeStr = is24Hour ?
-                    `${hour}:${minute}` :
-                    `${hour}:${minute} ${ampm || ''}`;
-                timeDisplay.innerHTML = `${timeStr}<span class="seconds">:${second}</span>`;
+                    const result = formatTime(now, selectedTimezone, is24Hour);
 
-                // Date
-                dateDisplay.textContent = formatDate(now, selectedTimezone);
+                    const timeStr = is24Hour
+                        ? result.hour + ':' + result.minute
+                        : result.hour + ':' + result.minute +
+                          (result.ampm ? ' ' + result.ampm : '');
 
-                // UTC Offset
-                utcOffsetEl.textContent = getUtcOffsetString(now, selectedTimezone);
+                    timeDisplay.innerHTML =
+                        timeStr +
+                        '<span class="seconds">:' +
+                        result.second +
+                        '</span>';
 
-                // DST
-                dstStatusEl.textContent = getDstStatus(now, selectedTimezone) ? 'Yes' : 'No';
+                    dateDisplay.textContent =
+                        formatDate(now, selectedTimezone);
 
-                // Format
-                formatStatusEl.textContent = is24Hour ? '24h' : '12h';
+                    utcOffsetEl.textContent =
+                        formatOffset(getOffsetMinutes(now, selectedTimezone));
 
-                // Unix Epoch
-                unixEpochEl.textContent = Math.floor(now.getTime() / 1000);
+                    dstStatusEl.textContent =
+                        getDstStatus(now, selectedTimezone) ? 'Yes' : 'No';
+
+                    formatStatusEl.textContent =
+                        is24Hour ? '24h' : '12h';
+
+                    unixEpochEl.textContent =
+                        Math.floor(now.getTime() / 1000);
+                } catch (error) {
+                    console.error('Clock update failed:', error);
+
+                    // Last-resort recovery so one browser Intl issue cannot
+                    // leave the application permanently stuck on 00:00:00.
+                    if (selectedTimezone !== 'UTC') {
+                        selectedTimezone = 'UTC';
+                        timezoneSelect.value = 'UTC';
+                        updateClock();
+                    }
+                }
             }
 
             // ===== TOGGLE FORMAT =====
-            toggleFormatBtn.addEventListener('click', function() {
+            toggleFormatBtn.addEventListener('click', function () {
                 is24Hour = !is24Hour;
                 updateClock();
             });
 
             // ===== FULLSCREEN =====
-            fullscreenBtn.addEventListener('click', function() {
-                if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen?.() ||
-                        document.documentElement.webkitRequestFullscreen?.();
-                } else {
-                    document.exitFullscreen?.() ||
-                        document.webkitExitFullscreen?.();
+            fullscreenBtn.addEventListener('click', function () {
+                const doc = document;
+                const root = document.documentElement;
+
+                try {
+                    if (!doc.fullscreenElement &&
+                        !doc.webkitFullscreenElement) {
+
+                        if (root.requestFullscreen) {
+                            root.requestFullscreen().catch(function () {});
+                        } else if (root.webkitRequestFullscreen) {
+                            root.webkitRequestFullscreen();
+                        } else {
+                            // Fullscreen is not supported by this browser.
+                            alert('Fullscreen is not supported by this browser.');
+                        }
+
+                    } else {
+                        if (doc.exitFullscreen) {
+                            doc.exitFullscreen().catch(function () {});
+                        } else if (doc.webkitExitFullscreen) {
+                            doc.webkitExitFullscreen();
+                        }
+                    }
+                } catch (error) {
+                    console.warn('Fullscreen unavailable:', error);
                 }
             });
 
             // ===== TIMEZONE CHANGE =====
-            timezoneSelect.addEventListener('change', function() {
-                selectedTimezone = this.value;
-                updateClock();
+            timezoneSelect.addEventListener('change', function () {
+                const value = this.value;
+
+                if (isValidTimezone(value)) {
+                    selectedTimezone = value;
+                    updateClock();
+                }
             });
 
-            // ===== INIT =====
-            populateTimezones();
-            updateClock();
-            setInterval(updateClock, 1000);
+            // ===== FULLSCREEN UI =====
+            function updateFullscreenButton() {
+                const isFull = !!(
+                    document.fullscreenElement ||
+                    document.webkitFullscreenElement
+                );
 
-            // Re-populate if Intl.supportedValuesOf is available (for more zones)
-            if (Intl.supportedValuesOf) {
-                // Already populated above
-            }
-
-            // Handle fullscreen change events
-            document.addEventListener('fullscreenchange', () => {
-                const isFull = !!document.fullscreenElement;
                 fullscreenBtn.innerHTML = isFull ? `
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="18" height="18"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M8 3v3a2 2 0 0 1-2 2H3"/>
                         <path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
                         <path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
@@ -678,7 +842,9 @@
                     </svg>
                     Exit Fullscreen
                 ` : `
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <svg viewBox="0 0 24 24" width="18" height="18"
+                         fill="none" stroke="currentColor" stroke-width="2"
+                         stroke-linecap="round" stroke-linejoin="round">
                         <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
                         <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
                         <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
@@ -686,9 +852,19 @@
                     </svg>
                     Fullscreen
                 `;
-            });
+            }
 
-            console.log('🕐 Pondoro Time initialized');
+            document.addEventListener('fullscreenchange', updateFullscreenButton);
+            document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
+
+            // ===== INIT =====
+            populateTimezones();
+            updateClock();
+
+            // Keep the clock alive even when a browser throttles timers.
+            setInterval(updateClock, 1000);
+
+            console.log('🕐 Check Time initialized');
         })();
     </script>
 
