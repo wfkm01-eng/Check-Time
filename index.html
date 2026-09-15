@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Check Time</title>
+    <style>
+        /* ===== RESET & BASE ===== */
+        *,
+        *::before,
+        *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg-gradient-1: #0a0a1a;
+            --bg-gradient-2: #1a1a3e;
+            --accent: #f0c040;
+            --accent-glow: rgba(240, 192, 64, 0.3);
+            --card-bg: rgba(255, 255, 255, 0.05);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --text-primary: #f0f0f0;
+            --text-secondary: #a0a0b8;
+            --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--bg-gradient-1), var(--bg-gradient-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: var(--text-primary);
+            overflow-x: hidden;
+        }
+
+        /* ===== ANIMATED BACKGROUND ===== */
+        .bg-animation {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .bg-animation .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.15;
+            animation: orbFloat 20s ease-in-out infinite alternate;
+        }
+
+        .bg-animation .orb:nth-child(1) {
+            width: 600px;
+            height: 600px;
+            background: #f0c040;
+            top: -10%;
+            left: -10%;
+            animation-duration: 25s;
+        }
+
+        .bg-animation .orb:nth-child(2) {
+            width: 500px;
+            height: 500px;
+            background: #ff6b6b;
+            bottom: -10%;
+            right: -10%;
+            animation-duration: 30s;
+            animation-delay: -5s;
+        }
+
+        .bg-animation .orb:nth-child(3) {
+            width: 400px;
+            height: 400px;
+            background: #4ecdc4;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            animation-duration: 35s;
+            animation-delay: -10s;
+        }
+
+        @keyframes orbFloat {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            33% {
+                transform: translate(80px, -60px) scale(1.1);
+            }
+            66% {
+                transform: translate(-40px, 80px) scale(0.9);
+            }
+            100% {
+                transform: translate(60px, 40px) scale(1.05);
+            }
+        }
+
+        /* ===== MAIN CARD ===== */
+        .main-card {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border);
+            border-radius: 32px;
+            padding: 40px 36px 48px;
+            box-shadow: var(--shadow);
+            transition: transform 0.3s ease;
+        }
+
+        .main-card:hover {
+            transform: translateY(-4px);
+        }
+
+        /* ===== HEADER ===== */
+        .header {
+            text-align: center;
+            margin-bottom: 36px;
+        }
+
+        .header .logo {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .header .logo svg {
+            width: 36px;
+            height: 36px;
+            fill: var(--accent);
+            filter: drop-shadow(0 0 12px var(--accent-glow));
+        }
+
+        .header h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #f0c040, #ff8a5c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        /* ===== CLOCK DISPLAY ===== */
+        .clock-display {
+            text-align: center;
+            margin-bottom: 32px;
+            padding: 24px 16px;
+            background: rgba(0, 0, 0, 0.25);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+        }
+
+        .clock-display .time {
+            font-size: 3.8rem;
+            font-weight: 300;
+            font-variant-numeric: tabular-nums;
+            letter-spacing: 4px;
+            line-height: 1.2;
+            color: #fff;
+            text-shadow: 0 0 30px rgba(240, 192, 64, 0.15);
+        }
+
+        .clock-display .time .seconds {
+            font-size: 2rem;
+            color: var(--accent);
+            font-weight: 400;
+        }
+
+        .clock-display .date {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-top: 10px;
+            letter-spacing: 1px;
+        }
+
+        /* ===== TIMEZONE SELECTOR ===== */
+        .timezone-selector {
+            margin-bottom: 28px;
+        }
+
+        .timezone-selector label {
+            display: block;
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .timezone-selector select {
+            width: 100%;
+            padding: 14px 18px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 14px;
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 500;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            transition: border-color 0.3s, box-shadow 0.3s;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%23a0a0b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+            background-size: 16px;
+        }
+
+        .timezone-selector select:hover {
+            border-color: rgba(240, 192, 64, 0.4);
+        }
+
+        .timezone-selector select:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .timezone-selector select option {
+            background: #1a1a3e;
+            color: #f0f0f0;
+        }
+
+        /* ===== INFO GRID ===== */
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+            margin-bottom: 28px;
+        }
+
+        .info-item {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 14px;
+            padding: 14px 16px;
+            text-align: center;
+            transition: background 0.3s, border-color 0.3s;
+        }
+
+        .info-item:hover {
+            background: rgba(255, 255, 255, 0.07);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .info-item .label {
+            font-size: 0.7rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 600;
+        }
+
+        .info-item .value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-top: 4px;
+            color: #fff;
+        }
+
+        .info-item .value.accent {
+            color: var(--accent);
+        }
+
+        /* ===== ACTIONS ===== */
+        .actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .actions button {
+            flex: 1;
+            padding: 14px 0;
+            border: none;
+            border-radius: 14px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s, background 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .actions button:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #f0c040, #e0a030);
+            color: #0a0a1a;
+            box-shadow: 0 4px 20px rgba(240, 192, 64, 0.3);
+        }
+
+        .btn-primary:hover {
+            box-shadow: 0 6px 28px rgba(240, 192, 64, 0.45);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.08);
+            color: var(--text-primary);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.14);
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary.fullscreen svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        /* ===== FOOTER ===== */
+        .footer {
+            text-align: center;
+            margin-top: 28px;
+            font-size: 0.75rem;
+            color: rgba(255, 255, 255, 0.2);
+            letter-spacing: 0.5px;
+        }
+
+        /* ===== RESPONSIVE ===== */
+        @media (max-width: 480px) {
+            .main-card {
+                padding: 28px 20px 36px;
+                border-radius: 24px;
+            }
+
+            .clock-display .time {
+                font-size: 2.8rem;
+                letter-spacing: 2px;
+            }
+
+            .clock-display .time .seconds {
+                font-size: 1.5rem;
+            }
+
+            .header h1 {
+                font-size: 1.6rem;
+            }
+
+            .info-grid {
+                grid-template-columns: 1fr 1fr;
+                gap: 8px;
+            }
+
+            .info-item {
+                padding: 10px 12px;
+            }
+
+            .info-item .value {
+                font-size: 1rem;
+            }
+
+            .actions {
+                flex-direction: column;
+            }
+        }
+
+        @media (max-width: 360px) {
+            .clock-display .time {
+                font-size: 2.2rem;
+            }
+
+            .main-card {
+                padding: 20px 16px 28px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ===== BACKGROUND ANIMATION ===== -->
+    <div class="bg-animation" aria-hidden="true">
+        <div class="orb"></div>
+        <div class="orb"></div>
+        <div class="orb"></div>
+    </div>
+
+    <!-- ===== MAIN CARD ===== -->
+    <div class="main-card" role="main">
+
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="1.5" opacity="0.3"/>
+                    <path d="M12 6v6l4 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+                    <circle cx="12" cy="12" r="2" fill="currentColor"/>
+                </svg>
+                <h1>Check Time</h1>
+            </div>
+            <p>World clock &amp; Time Zone Tracker</p>
+        </div>
+
+        <!-- Clock Display -->
+        <div class="clock-display">
+            <div class="time" id="timeDisplay">
+                00:00<span class="seconds">:00</span>
+            </div>
+            <div class="date" id="dateDisplay">Loading...</div>
+        </div>
+
+        <!-- Timezone Selector -->
+        <div class="timezone-selector">
+            <label for="timezoneSelect">Timezone</label>
+            <select id="timezoneSelect"></select>
+        </div>
+
+        <!-- Info Grid -->
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="label">UTC Offset</div>
+                <div class="value accent" id="utcOffset">+00:00</div>
+            </div>
+            <div class="info-item">
+                <div class="label">DST</div>
+                <div class="value" id="dstStatus">No</div>
+            </div>
+            <div class="info-item">
+                <div class="label">24h Format</div>
+                <div class="value" id="formatStatus">Yes</div>
+            </div>
+            <div class="info-item">
+                <div class="label">Unix Epoch</div>
+                <div class="value" id="unixEpoch">0</div>
+            </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions">
+            <button class="btn-primary" id="toggleFormatBtn" title="Toggle 12h / 24h format">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"/>
+                    <polyline points="12 6 12 12 16 14"/>
+                </svg>
+                Toggle Format
+            </button>
+            <button class="btn-secondary fullscreen" id="fullscreenBtn" title="Toggle fullscreen mode">
+                <svg viewBox="0 0 24 24">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                    <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+                    <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                    <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+                </svg>
+                Fullscreen
+            </button>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            Pondoro Time &mdash; Built with ❤️
+        </div>
+    </div>
+
+    <script>
+        (function() {
+            'use strict';
+
+            // ===== DOM REFS =====
+            const timeDisplay = document.getElementById('timeDisplay');
+            const dateDisplay = document.getElementById('dateDisplay');
+            const timezoneSelect = document.getElementById('timezoneSelect');
+            const utcOffsetEl = document.getElementById('utcOffset');
+            const dstStatusEl = document.getElementById('dstStatus');
+            const formatStatusEl = document.getElementById('formatStatus');
+            const unixEpochEl = document.getElementById('unixEpoch');
+            const toggleFormatBtn = document.getElementById('toggleFormatBtn');
+            const fullscreenBtn = document.getElementById('fullscreenBtn');
+
+            // ===== STATE =====
+            let is24Hour = true;
+            let selectedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+            // ===== POPULATE TIMEZONES =====
+            function populateTimezones() {
+                const zones = Intl.supportedValuesOf
+                    ? Intl.supportedValuesOf('timeZone')
+                    : [
+                        'UTC',
+                        'America/New_York',
+                        'America/Chicago',
+                        'America/Denver',
+                        'America/Los_Angeles',
+                        'Europe/London',
+                        'Europe/Paris',
+                        'Europe/Berlin',
+                        'Europe/Moscow',
+                        'Asia/Dubai',
+                        'Asia/Kolkata',
+                        'Asia/Shanghai',
+                        'Asia/Tokyo',
+                        'Asia/Seoul',
+                        'Australia/Sydney',
+                        'Pacific/Auckland',
+                        'Africa/Cairo',
+                        'Africa/Johannesburg',
+                        'Africa/Lagos',
+                        'Africa/Nairobi'
+                    ];
+
+                // Deduplicate and sort
+                const uniqueZones = [...new Set(zones)].sort();
+
+                // Clear existing
+                timezoneSelect.innerHTML = '';
+
+                uniqueZones.forEach(zone => {
+                    const option = document.createElement('option');
+                    option.value = zone;
+                    option.textContent = zone.replace(/_/g, ' ');
+                    if (zone === selectedTimezone) {
+                        option.selected = true;
+                    }
+                    timezoneSelect.appendChild(option);
+                });
+            }
+
+            // ===== FORMAT HELPERS =====
+            function pad(n) {
+                return String(n).padStart(2, '0');
+            }
+
+            function formatTime(date, tz, is24) {
+                const opts = {
+                    timeZone: tz,
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: !is24,
+                };
+                const parts = new Intl.DateTimeFormat('en-US', opts).formatToParts(date);
+                let hour = '00',
+                    minute = '00',
+                    second = '00',
+                    ampm = '';
+                parts.forEach(p => {
+                    if (p.type === 'hour') hour = p.value;
+                    if (p.type === 'minute') minute = p.value;
+                    if (p.type === 'second') second = p.value;
+                    if (p.type === 'dayPeriod') ampm = p.value;
+                });
+                return { hour, minute, second, ampm };
+            }
+
+            function formatDate(date, tz) {
+                const opts = {
+                    timeZone: tz,
+                    weekday: 'long',
+                    year: 'numeric',
+                    month: 'long',
+                    day: 'numeric',
+                };
+                return new Intl.DateTimeFormat('en-US', opts).format(date);
+            }
+
+            function getUtcOffsetString(date, tz) {
+                const opts = {
+                    timeZone: tz,
+                    timeZoneName: 'shortOffset',
+                };
+                const parts = new Intl.DateTimeFormat('en-US', opts).formatToParts(date);
+                const offsetPart = parts.find(p => p.type === 'timeZoneName');
+                let offset = offsetPart ? offsetPart.value : 'UTC';
+                // Normalize
+                if (offset === 'GMT') offset = 'UTC';
+                return offset;
+            }
+
+            function getDstStatus(date, tz) {
+                // Simple heuristic: compare Jan and Jul offsets
+                const jan = new Date(date.getFullYear(), 0, 1);
+                const jul = new Date(date.getFullYear(), 6, 1);
+                const opts = { timeZone: tz, timeZoneName: 'shortOffset' };
+                const janOffset = new Intl.DateTimeFormat('en-US', opts).formatToParts(jan).find(p => p.type === 'timeZoneName')?.value || '';
+                const julOffset = new Intl.DateTimeFormat('en-US', opts).formatToParts(jul).find(p => p.type === 'timeZoneName')?.value || '';
+                return janOffset !== julOffset;
+            }
+
+            // ===== UPDATE CLOCK =====
+            function updateClock() {
+                const now = new Date();
+
+                // Time
+                const { hour, minute, second, ampm } = formatTime(now, selectedTimezone, is24Hour);
+                const timeStr = is24Hour ?
+                    `${hour}:${minute}` :
+                    `${hour}:${minute} ${ampm || ''}`;
+                timeDisplay.innerHTML = `${timeStr}<span class="seconds">:${second}</span>`;
+
+                // Date
+                dateDisplay.textContent = formatDate(now, selectedTimezone);
+
+                // UTC Offset
+                utcOffsetEl.textContent = getUtcOffsetString(now, selectedTimezone);
+
+                // DST
+                dstStatusEl.textContent = getDstStatus(now, selectedTimezone) ? 'Yes' : 'No';
+
+                // Format
+                formatStatusEl.textContent = is24Hour ? '24h' : '12h';
+
+                // Unix Epoch
+                unixEpochEl.textContent = Math.floor(now.getTime() / 1000);
+            }
+
+            // ===== TOGGLE FORMAT =====
+            toggleFormatBtn.addEventListener('click', function() {
+                is24Hour = !is24Hour;
+                updateClock();
+            });
+
+            // ===== FULLSCREEN =====
+            fullscreenBtn.addEventListener('click', function() {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen?.() ||
+                        document.documentElement.webkitRequestFullscreen?.();
+                } else {
+                    document.exitFullscreen?.() ||
+                        document.webkitExitFullscreen?.();
+                }
+            });
+
+            // ===== TIMEZONE CHANGE =====
+            timezoneSelect.addEventListener('change', function() {
+                selectedTimezone = this.value;
+                updateClock();
+            });
+
+            // ===== INIT =====
+            populateTimezones();
+            updateClock();
+            setInterval(updateClock, 1000);
+
+            // Re-populate if Intl.supportedValuesOf is available (for more zones)
+            if (Intl.supportedValuesOf) {
+                // Already populated above
+            }
+
+            // Handle fullscreen change events
+            document.addEventListener('fullscreenchange', () => {
+                const isFull = !!document.fullscreenElement;
+                fullscreenBtn.innerHTML = isFull ? `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3v3a2 2 0 0 1-2 2H3"/>
+                        <path d="M21 8h-3a2 2 0 0 1-2-2V3"/>
+                        <path d="M16 21v-3a2 2 0 0 1 2-2h3"/>
+                        <path d="M3 16h3a2 2 0 0 1 2 2v3"/>
+                    </svg>
+                    Exit Fullscreen
+                ` : `
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M8 3H5a2 2 0 0 0-2 2v3"/>
+                        <path d="M21 8V5a2 2 0 0 0-2-2h-3"/>
+                        <path d="M16 21h3a2 2 0 0 0 2-2v-3"/>
+                        <path d="M3 16v3a2 2 0 0 0 2 2h3"/>
+                    </svg>
+                    Fullscreen
+                `;
+            });
+
+            console.log('🕐 Pondoro Time initialized');
+        })();
+    </script>
+
+</body>
+</html>
